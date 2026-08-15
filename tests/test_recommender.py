@@ -2,7 +2,7 @@
 tests.py — юніт-тести для парсера інтентів, векторизації товарів
 та косинусної подібності рекомендаційної системи.
 
-Запуск:  pytest tests.py -v
+Run with: python -m pytest
 """
 import json
 import numpy as np
@@ -120,9 +120,8 @@ class TestIntentPrice:
 
     def test_price_range_two_values(self):
         result = parse_intent_from_text("від 1000 до 3000 грн")
-        # "від 1000" спрацює як min_price через from_match
-        # але "до" перехоплює budget_match першим
-        assert result["max_price"] == 3000 or result["min_price"] is not None
+        assert result["min_price"] == 1000
+        assert result["max_price"] == 3000
 
     def test_single_price_with_grn(self):
         result = parse_intent_from_text("футболка 800 грн")

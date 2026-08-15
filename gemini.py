@@ -22,10 +22,15 @@ from recommender import score_products
 
 logger = logging.getLogger(__name__)
 
-client = genai.Client(api_key=GEMINI_API_KEY)
 MODEL = "gemini-2.5-flash"
 
 MAX_HISTORY = 6
+
+
+def _get_client():
+    if not GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY is not configured.")
+    return genai.Client(api_key=GEMINI_API_KEY)
 
 SYSTEM_PROMPT = f"""Ти — AI-асистент інтернет-магазину одягу "{SHOP_NAME}".
 
@@ -131,24 +136,29 @@ def parse_intent_from_text(message: str) -> dict:
 
     max_price = None
     min_price = None
-    # Паттерн "до X грн", "до X", "менше X", "не більше X", "бюджет X"
-    budget_match = re.search(r"(?:до|(?<!не )менше|не більше|не дорожче|бюджет(?:ом)?)\s*(\d+)", msg)
-    if budget_match:
-        max_price = int(budget_match.group(1))
+    range_match = re.search(r"від\s*(\d+)\s*до\s*(\d+)", msg)
+    if range_match:
+        min_price = int(range_match.group(1))
+        max_price = int(range_match.group(2))
     else:
-        from_match = re.search(r"(?:від|більше|не менше|не дешевше)\s*(\d+)", msg)
-        if from_match:
-            min_price = int(from_match.group(1))
+        # Паттерн "до X грн", "до X", "менше X", "не більше X", "бюджет X"
+        budget_match = re.search(r"(?:до|(?<!не )менше|не більше|не дорожче|бюджет(?:ом)?)\s*(\d+)", msg)
+        if budget_match:
+            max_price = int(budget_match.group(1))
         else:
-            # Загальний паттерн "XXXX грн"
-            price_match = re.findall(r"(\d+)\s*грн", msg)
-            if price_match:
-                prices = [int(p) for p in price_match]
-                if len(prices) == 1:
-                    max_price = prices[0]
-                elif len(prices) >= 2:
-                    min_price = min(prices)
-                    max_price = max(prices)
+            from_match = re.search(r"(?:від|більше|не менше|не дешевше)\s*(\d+)", msg)
+            if from_match:
+                min_price = int(from_match.group(1))
+            else:
+                # Загальний паттерн "XXXX грн"
+                price_match = re.findall(r"(\d+)\s*грн", msg)
+                if price_match:
+                    prices = [int(p) for p in price_match]
+                    if len(prices) == 1:
+                        max_price = prices[0]
+                    elif len(prices) >= 2:
+                        min_price = min(prices)
+                        max_price = max(prices)
 
     size = None
     # Спочатку перевіряємо числові розміри взуття (36-46)
@@ -207,7 +217,7 @@ def _save_to_history(session: dict, role: str, text: str):
 
 
 def _generate_sync(prompt: str) -> str:
-    response = client.models.generate_content(model=MODEL, contents=prompt)
+    response = _get_client().models.generate_content(model=MODEL, contents=prompt)
     return response.text
 
 
@@ -237,6 +247,12 @@ def _parse_gemini_response(raw: str) -> dict:
     except (json.JSONDecodeError, ValueError, TypeError):
         logger.warning("Gemini returned non-JSON response, using as plain text")
         return {"reply": text, "product_ids": []}
+
+
+def filter_product_ids(product_ids: list[int], candidates: list[dict]) -> list[int]:
+    """Keep only model-provided IDs that belong to the ranked candidate set."""
+    allowed_ids = {product["id"] for product in candidates}
+    return [product_id for product_id in product_ids if product_id in allowed_ids]
 
 
 async def process_message(user_id: int, message: str) -> dict:
@@ -362,6 +378,9 @@ async def process_message(user_id: int, message: str) -> dict:
         raw_response = await _generate(prompt)
         logger.info("Gemini raw response for user %s: %s", user_id, raw_response[:500])
         result = _parse_gemini_response(raw_response)
+        result["product_ids"] = filter_product_ids(
+            result["product_ids"], main_products + extra_products
+        )
         logger.info("Gemini parsed: reply=%s..., product_ids=%s",
                      result["reply"][:100], result["product_ids"])
     except Exception as e:

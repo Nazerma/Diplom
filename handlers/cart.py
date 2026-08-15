@@ -303,6 +303,13 @@ async def handle_callback(query, user_id: int, data: str,
             + "\n".join(item_lines)
         )
 
+        if ORDERS_CHAT_ID is None:
+            logger.info(
+                "Order %s was created without an admin notification target.",
+                order["order_code"],
+            )
+            return True
+
         try:
             await context.application.bot.send_message(
                 chat_id=ORDERS_CHAT_ID,

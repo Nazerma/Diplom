@@ -18,10 +18,11 @@ _raw_admins = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS = [int(x.strip()) for x in _raw_admins.split(",") if x.strip().isdigit()]
 
 # ID чату/групи для повідомлень про нові замовлення
-ORDERS_CHAT_ID = int(os.getenv("ORDERS_CHAT_ID", "-5061122823"))
+_orders_chat_id = os.getenv("ORDERS_CHAT_ID", "").strip()
+ORDERS_CHAT_ID = int(_orders_chat_id) if _orders_chat_id else None
 
 # Реквізити для оплати (показуються користувачу при оформленні)
 PAYMENT_DETAILS = os.getenv(
     "PAYMENT_DETAILS",
-    "Картка ПриватБанк: 4149 XXXX XXXX XXXX\nОтримувач: Прізвище Ім'я"
+    "Payment details are not configured.",
 )

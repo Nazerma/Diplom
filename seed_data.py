@@ -695,7 +695,7 @@ def seed():
     with get_connection() as conn:
         count = conn.execute("SELECT COUNT(*) FROM products").fetchone()[0]
         if count > 0:
-            print(f"БД вже містить {count} товарів. Пропускаю seed.")
+            print(f"Database already contains {count} products. Skipping seed.")
             return
 
         for p in PRODUCTS:
@@ -710,7 +710,7 @@ def seed():
                  p["material"], p["description"], p.get("image_url", ""))
             )
 
-    print(f"✅ Додано {len(PRODUCTS)} товарів у базу даних.")
+    print(f"Seeded {len(PRODUCTS)} products into the database.")
 
 
 if __name__ == "__main__":

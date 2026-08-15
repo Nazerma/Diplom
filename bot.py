@@ -223,10 +223,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     if not TELEGRAM_TOKEN:
-        print("❌ TELEGRAM_TOKEN не встановлено! Перевір .env файл.")
+        print("ERROR: TELEGRAM_TOKEN is not configured. Check .env.")
         return
     if not GEMINI_API_KEY:
-        print("⚠️  GEMINI_API_KEY не встановлено — AI-відповіді не працюватимуть.")
+        print("WARNING: GEMINI_API_KEY is not configured; local fallback replies will be used.")
 
     init_db()
     migrate_db()
@@ -251,7 +251,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     logger.info("Бот %s запущено!", SHOP_NAME)
-    print(f"🚀 Бот {SHOP_NAME} запущено! Ctrl+C щоб зупинити.")
+    print(f"{SHOP_NAME} bot is running. Press Ctrl+C to stop.")
 
     app.run_polling(drop_pending_updates=True)
 
